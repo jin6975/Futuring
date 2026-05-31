@@ -329,7 +329,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
     if (!username.trim()) return false
     // 관리자 계정
     if (username==='cjdmadldpdy123' && password==='dnjsanrhk1!') {
-      const email = 'cjdmadldpdy123@futuring.app'
+      const email = 'cjdmadldpdy123@futuring-user.com'
       let userId = ''
       const { data: signInData } = await supabase.auth.signInWithPassword({ email, password })
       if (signInData.user) {
@@ -346,7 +346,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
       return true
     }
     // 일반 유저
-    const email = `${username}@futuring.app`
+    const email = `${username}@futuring-user.com`
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error || !data.user) return false
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
@@ -359,7 +359,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
   signup: async (username, password) => {
     if (!username.trim()||!password.trim()) return false
     if (username==='cjdmadldpdy123') return false
-    const email = `${username}@futuring.app`
+    const email = `${username}@futuring-user.com`
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error || !data.user) return false
     const { error: profileError } = await supabase.from('profiles').insert({ id:data.user.id, username, is_admin:false, wallet_balance:5000 })
