@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { type CommunityEntry, getSeedEntries, makeTopicEntry } from '@/lib/communityEntries'
+import { type CommunityEntry, getSeedEntries } from '@/lib/communityEntries'
 import { usePledgeStore } from '@/store/usePledgeStore'
+import { supabase } from '@/lib/supabase'
 
 const BLUE = '#2563EB'
 const RED  = '#DC2626'
@@ -72,10 +73,11 @@ interface CommunityFeedProps {
   topic?: string | null
   title?: string | null
   onClose?: () => void
-  compact?: boolean  // 고래 페이지용 compact 모드
+  compact?: boolean
+  marketId?: string | null
 }
 
-export default function CommunityFeed({ topic, title, onClose, compact = false }: CommunityFeedProps) {
+export default function CommunityFeed({ topic, title, onClose, compact = false, marketId }: CommunityFeedProps) {
   const username = usePledgeStore(s => s.currentUser.username)
   const [entries, setEntries] = useState<CommunityEntry[]>([])
   const [newestId, setNewestId] = useState<string | null>(null)
@@ -86,45 +88,95 @@ export default function CommunityFeed({ topic, title, onClose, compact = false }
   const [sortMode, setSortMode] = useState<'latest' | 'best'>('latest')
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (!topic) { setEntries([]); setNewestId(null); setLikes({}); setLikedSet(new Set()); return }
-    setEntries(getSeedEntries(topic, topic, 12))
-    setNewestId(null)
-  }, [topic])
-
-  useEffect(() => {
-    if (!topic) return
-    let tid: ReturnType<typeof setTimeout>
-    const schedule = () => {
-      tid = setTimeout(() => {
-        const e = makeTopicEntry(topic)
-        setNewestId(e.id)
-        setEntries(prev => [e, ...prev].slice(0, 30))
-        schedule()
-      }, 2500 + Math.random() * 3000)
+  const loadPosts = useCallback(async () => {
+    if (!marketId) {
+      if (topic) setEntries(getSeedEntries(topic, topic, 12))
+      return
     }
-    schedule()
-    return () => clearTimeout(tid)
-  }, [topic])
+    const { data } = await supabase.from('community_posts').select('*').eq('market_id', marketId).order('created_at', { ascending: false }).limit(30)
+    if (data && data.length > 0) {
+      const colors = ['#2563EB','#7C3AED','#DB2777','#D97706','#059669','#DC2626']
+      const mapped: CommunityEntry[] = data.map(p => ({
+        id: p.id,
+        ts: new Date(p.created_at).getTime(),
+        user: p.username,
+        avatarColor: colors[p.username.charCodeAt(0) % colors.length],
+        type: p.amount ? 'bet' : 'comment',
+        text: p.content,
+        side: p.side,
+      }))
+      setEntries(mapped)
+      const likesMap: Record<string, number> = {}
+      data.forEach(p => { likesMap[p.id] = p.likes ?? 0 })
+      setLikes(likesMap)
+    } else if (topic) {
+      setEntries(getSeedEntries(topic, topic, 12))
+    }
+  }, [marketId, topic])
 
-  const handleLike = (id: string) => {
+  useEffect(() => {
+    loadPosts()
+  }, [loadPosts])
+
+  // Supabase 실시간 구독
+  useEffect(() => {
+    if (!marketId) return
+    const channel = supabase.channel(`community_${marketId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_posts', filter: `market_id=eq.${marketId}` },
+        (payload) => {
+          const p = payload.new as Record<string, unknown>
+          const colors = ['#2563EB','#7C3AED','#DB2777','#D97706','#059669','#DC2626']
+          const newEntry: CommunityEntry = {
+            id: p.id as string,
+            ts: new Date(p.created_at as string).getTime(),
+            user: p.username as string,
+            avatarColor: colors[(p.username as string).charCodeAt(0) % colors.length],
+            type: p.amount ? 'bet' : 'comment',
+            text: p.content as string,
+            side: (p.side as 'A' | 'B') ?? undefined,
+          }
+          setNewestId(newEntry.id)
+          setEntries(prev => [newEntry, ...prev].slice(0, 30))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [marketId])
+
+  const handleLike = async (id: string) => {
     if (likedSet.has(id)) return
     setLikes(prev => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }))
     setLikedSet(prev => new Set([...prev, id]))
+    if (username) {
+      await supabase.from('post_likes').insert({ post_id: id, username }).then(() => {})
+      await supabase.rpc('increment_likes', { post_id: id }).then(() => {})
+    }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const text = inputVal.trim()
     if (!text || !topic) return
     const colors = ['#2563EB','#7C3AED','#DB2777','#D97706','#059669','#DC2626']
-    const newEntry: CommunityEntry = {
-      id: `user-${Date.now()}`, ts: Date.now(),
-      user: username || '익명',
-      avatarColor: colors[(username || '익명').charCodeAt(0) % colors.length],
-      type: 'comment', text,
+    const newId = `post-${Date.now().toString(36)}`
+
+    if (marketId && username) {
+      await supabase.from('community_posts').insert({
+        id: newId,
+        username,
+        content: text,
+        market_id: marketId,
+        market_topic: topic,
+      })
+    } else {
+      const newEntry: CommunityEntry = {
+        id: newId, ts: Date.now(),
+        user: username || '익명',
+        avatarColor: colors[(username || '익명').charCodeAt(0) % colors.length],
+        type: 'comment', text,
+      }
+      setNewestId(newEntry.id)
+      setEntries(prev => [newEntry, ...prev].slice(0, 30))
     }
-    setNewestId(newEntry.id)
-    setEntries(prev => [newEntry, ...prev].slice(0, 30))
     setInputVal('')
   }
 
@@ -136,7 +188,6 @@ export default function CommunityFeed({ topic, title, onClose, compact = false }
 
   return (
     <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #F3F4F6', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden', width: compact ? '100%' : undefined, height: compact ? undefined : '100%', display: 'flex', flexDirection: 'column' as const }}>
-      {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px', borderBottom: '1px solid #F3F4F6' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>커뮤니티</span>
@@ -163,14 +214,12 @@ export default function CommunityFeed({ topic, title, onClose, compact = false }
         </div>
       </div>
 
-      {/* 타이틀 */}
       {topic && title && (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid #F3F4F6', backgroundColor: '#F9FAFB' }}>
           <p style={{ fontSize: 12, color: '#6B7280', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
         </div>
       )}
 
-      {/* 빈 상태 */}
       {!topic && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', textAlign: 'center' }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -181,7 +230,6 @@ export default function CommunityFeed({ topic, title, onClose, compact = false }
         </div>
       )}
 
-      {/* 피드 */}
       {topic && (
         <div style={{ overflowY: 'auto', maxHeight: maxH, flex: 1 }}>
           {sortedEntries.map(e => (
@@ -190,7 +238,6 @@ export default function CommunityFeed({ topic, title, onClose, compact = false }
         </div>
       )}
 
-      {/* 입력창 */}
       {topic && (
         <div style={{ padding: '10px 16px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
