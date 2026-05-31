@@ -26,13 +26,13 @@ export default function LoginPage() {
     await new Promise(r => setTimeout(r, 400))
     if (tab === 'signup') {
       if (password !== passwordConfirm) { setLoading(false); return setError('비밀번호가 일치하지 않아요') }
-      if (password.length < 4) { setLoading(false); return setError('비밀번호는 4자 이상이어야 해요') }
-      const ok = signup(username, password)
+      if (password.length < 6) { setLoading(false); return setError('비밀번호는 6자 이상이어야 해요') }
+      const ok = await signup(username, password)
       if (!ok) { setLoading(false); return setError('이미 사용 중인 아이디예요') }
-      login(username, password)
+      await login(username, password)
       router.push('/')
     } else {
-      const ok = login(username, password)
+      const ok = await login(username, password)
       if (!ok) { setLoading(false); return setError('아이디 또는 비밀번호가 틀렸어요') }
       const state = usePledgeStore.getState()
       router.push(state.currentUser.isAdmin ? '/admin' : '/')
@@ -73,7 +73,7 @@ export default function LoginPage() {
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
         {[['🟡','카카오'],['🟢','네이버'],['⚫','애플']].map(([icon, name]) => (
-          <button key={name} onClick={() => { const u=`${name}_${Math.random().toString(36).slice(2,7)}`; signup(u,'social'); login(u,'social'); router.push('/') }}
+          <button key={name} onClick={async () => { const u=`${name}_${Math.random().toString(36).slice(2,7)}`; await signup(u,'social123'); await login(u,'social123'); router.push('/') }}
             style={{ flex: 1, padding: '11px 0', borderRadius: 12, border: `1.5px solid ${C.grayBorder}`, background: C.white, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.navy }}>
             {icon} {name}
           </button>
