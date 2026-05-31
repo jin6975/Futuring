@@ -9,6 +9,7 @@ import BottomNav from '@/components/BottomNav'
 import CommunityFeed from '@/components/CommunityFeed'
 import TradingChart from '@/components/TradingChart'
 import MultiOptionBet from '@/components/MultiOptionBet'
+import LoginModal from '@/components/LoginModal'
 import { C } from '@/lib/constants'
 
 // ── 토스트 ─────────────────────────────────────────
@@ -95,40 +96,6 @@ export default function MarketPage() {
 
   const isBinary = debate.type === 'binary'
 
-  // ── 로그인 모달 (인라인) ─────────────────────────
-  function LoginModal() {
-    const [u, setU] = useState(''); const [p, setP] = useState(''); const [err, setErr] = useState('')
-    const { login, signup } = usePledgeStore()
-    const [mode, setMode] = useState<'login'|'signup'>('login')
-    const handle = () => {
-      if (!u.trim()||!p.trim()){setErr('아이디와 비밀번호를 입력해주세요');return}
-      if(mode==='login'){if(!login(u,p)){setErr('아이디 또는 비밀번호가 틀렸어요')}else setShowLoginModal(false)}
-      else{if(!signup(u,p)){setErr('이미 사용 중인 아이디예요')}else{login(u,p);setShowLoginModal(false)}}
-    }
-    return (
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}} onClick={e=>e.target===e.currentTarget&&setShowLoginModal(false)}>
-        <div style={{background:C.white,borderRadius:24,padding:32,width:'100%',maxWidth:380,boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}}>
-          <div style={{textAlign:'center' as const,marginBottom:24}}>
-            <div style={{width:52,height:52,borderRadius:16,background:`linear-gradient(135deg,${C.blueMid},${C.blue})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,margin:'0 auto 12px'}}>⚡</div>
-            <h2 style={{fontSize:20,fontWeight:900,color:C.navy,marginBottom:6}}>{mode==='login'?'베팅하려면 로그인하세요':'회원가입'}</h2>
-            <p style={{fontSize:13,color:C.gray}}>{mode==='login'?'계정이 없으신가요?':'이미 계정이 있으신가요?'}
-              <button onClick={()=>{setMode(mode==='login'?'signup':'login');setErr('')}} style={{background:'none',border:'none',cursor:'pointer',color:C.blue,fontWeight:700,fontSize:13,marginLeft:4}}>{mode==='login'?'회원가입 →':'로그인 →'}</button>
-            </p>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:16}}>
-            <input value={u} onChange={e=>setU(e.target.value)} placeholder="아이디" onKeyDown={e=>e.key==='Enter'&&handle()} style={{padding:'13px 16px',borderRadius:12,border:`1.5px solid ${C.grayBorder}`,fontSize:15,color:C.navy,outline:'none',background:C.grayLight}}/>
-            <input type="password" value={p} onChange={e=>setP(e.target.value)} placeholder="비밀번호" onKeyDown={e=>e.key==='Enter'&&handle()} style={{padding:'13px 16px',borderRadius:12,border:`1.5px solid ${C.grayBorder}`,fontSize:15,color:C.navy,outline:'none',background:C.grayLight}}/>
-          </div>
-          {err&&<p style={{fontSize:13,color:C.red,marginBottom:12,textAlign:'center' as const}}>{err}</p>}
-          <button onClick={handle} style={{width:'100%',padding:'14px 0',borderRadius:14,border:'none',background:`linear-gradient(135deg,${C.blueMid},${C.blue})`,color:'#fff',fontSize:15,fontWeight:800,cursor:'pointer',marginBottom:10}}>
-            {mode==='login'?'로그인':'회원가입'}
-          </button>
-          <button onClick={()=>setShowLoginModal(false)} style={{width:'100%',padding:'12px 0',borderRadius:14,border:`1.5px solid ${C.grayBorder}`,background:C.white,color:C.gray,fontSize:14,fontWeight:600,cursor:'pointer'}}>닫기</button>
-        </div>
-      </div>
-    )
-  }
-
   // ── 베팅 패널 ──────────────────────────────────
   const BetPanel = (
     <div style={{ background: C.white, borderRadius: 20, padding: 20, border: `1.5px solid ${side ? C.blue : C.grayBorder}`, transition: 'border-color 0.2s' }}>
@@ -196,7 +163,7 @@ export default function MarketPage() {
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Nav />
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      {showLoginModal && <LoginModal />}
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} message="베팅하려면 로그인이 필요해요" />}
       <div style={{ padding: '16px 16px 0' }}>{ChartPanel}</div>
       {debate.status === 'live' && (
         <div style={{ padding: '12px 16px' }}>
@@ -218,7 +185,7 @@ export default function MarketPage() {
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Nav />
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      {showLoginModal && <LoginModal />}
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} message="베팅하려면 로그인이 필요해요" />}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 320px 300px',

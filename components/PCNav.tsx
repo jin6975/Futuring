@@ -18,6 +18,8 @@ export default function PCNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { walletBalance, currentUser, logout, addDemoPoints } = usePledgeStore()
+  const isLoggedIn = currentUser.isLoggedIn
+
   return (
     <header style={{ position:'sticky', top:0, zIndex:50, background:'rgba(255,255,255,0.96)', backdropFilter:'blur(12px)', borderBottom:`1px solid ${C.grayBorder}`, padding:'0 32px', display:'flex', alignItems:'center', height:64, gap:24 }}>
       <Link href="/"><Image src="/logo.png" alt="futuring" height={42} width={160} style={{ objectFit:'contain', objectPosition:'left' }} priority /></Link>
@@ -33,17 +35,25 @@ export default function PCNav() {
         })}
       </nav>
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <TierBadge points={walletBalance} size="sm" />
-        <button onClick={() => addDemoPoints(100000)} style={{ padding:'7px 14px', borderRadius:10, background:'#F0FDF4', color:'#16A34A', border:'1.5px solid #86EFAC', cursor:'pointer', fontSize:13, fontWeight:700 }}>+ 충전</button>
-        <Link href="/activity" style={{ textDecoration:'none' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, background:C.bluePale, borderRadius:10, padding:'6px 14px' }}>
-            <span style={{ fontSize:13 }}>💎</span>
-            <span style={{ fontSize:14, fontWeight:700, color:C.blue }}>{walletBalance.toLocaleString()} P</span>
-          </div>
-        </Link>
-        {currentUser.isAdmin && <Link href="/admin" style={{ textDecoration:'none' }}><div style={{ padding:'6px 12px', borderRadius:10, background:'#FEF3C7', border:'1px solid #F59E0B', fontSize:12, fontWeight:700, color:'#92400E' }}>관리자</div></Link>}
-        <Link href="/create" style={{ textDecoration:'none' }}><div style={{ padding:'8px 16px', borderRadius:10, background:C.blue, color:C.white, fontSize:13, fontWeight:700 }}>+ 마켓 만들기</div></Link>
-        <button onClick={() => { logout(); router.push('/login') }} style={{ padding:'7px 12px', borderRadius:10, border:`1.5px solid ${C.grayBorder}`, background:'transparent', color:C.gray, fontSize:12, fontWeight:600, cursor:'pointer' }}>로그아웃</button>
+        {isLoggedIn ? (
+          <>
+            <TierBadge points={walletBalance} size="sm" />
+            <button onClick={() => addDemoPoints(100000)} style={{ padding:'7px 14px', borderRadius:10, background:'#F0FDF4', color:'#16A34A', border:'1.5px solid #86EFAC', cursor:'pointer', fontSize:13, fontWeight:700 }}>+ 충전</button>
+            <Link href="/activity" style={{ textDecoration:'none' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, background:C.bluePale, borderRadius:10, padding:'6px 14px' }}>
+                <span style={{ fontSize:13 }}>💎</span>
+                <span style={{ fontSize:14, fontWeight:700, color:C.blue }}>{walletBalance.toLocaleString()} P</span>
+              </div>
+            </Link>
+            {currentUser.isAdmin && <Link href="/admin" style={{ textDecoration:'none' }}><div style={{ padding:'6px 12px', borderRadius:10, background:'#FEF3C7', border:'1px solid #F59E0B', fontSize:12, fontWeight:700, color:'#92400E' }}>관리자</div></Link>}
+            {currentUser.isAdmin && <Link href="/create" style={{ textDecoration:'none' }}><div style={{ padding:'8px 16px', borderRadius:10, background:C.blue, color:C.white, fontSize:13, fontWeight:700 }}>+ 마켓 만들기</div></Link>}
+            <button onClick={() => { logout(); router.push('/login') }} style={{ padding:'7px 12px', borderRadius:10, border:`1.5px solid ${C.grayBorder}`, background:'transparent', color:C.gray, fontSize:12, fontWeight:600, cursor:'pointer' }}>로그아웃</button>
+          </>
+        ) : (
+          <Link href="/login" style={{ textDecoration:'none' }}>
+            <div style={{ padding:'8px 20px', borderRadius:10, background:C.blue, color:C.white, fontSize:14, fontWeight:700, cursor:'pointer' }}>로그인</div>
+          </Link>
+        )}
       </div>
     </header>
   )

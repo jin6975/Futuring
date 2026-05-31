@@ -1,14 +1,20 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { usePledgeStore } from '@/store/usePledgeStore'
 import { supabase } from '@/lib/supabase'
 
 // 비로그인도 접근 가능한 경로
-const PUBLIC_PATHS = ['/', '/market', '/explore', '/tiers', '/login']
+const isPublicPath = (pathname: string) =>
+  pathname === '/' ||
+  pathname === '/login' ||
+  pathname === '/tiers' ||
+  pathname === '/explore' ||
+  pathname.startsWith('/market/')
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
   const loadMarkets = usePledgeStore(s => s.loadMarkets)
   const loadUserData = usePledgeStore(s => s.loadUserData)
@@ -20,10 +26,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return unsub
   }, [])
 
-  // 마켓 데이터 로드 (항상)
-  useEffect(() => {
-    loadMarkets()
-  }, [loadMarkets])
+  // 마켓 데이터 로드
+  useEffect(() => { loadMarkets() }, [loadMarkets])
 
   // Supabase 세션 복원
   useEffect(() => {
@@ -52,18 +56,20 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     })
   }, [loadUserData])
 
+  // 비공개 경로 + 비로그인 → 로그인 페이지로
+  useEffect(() => {
+    if (!hydrated) return
+    if (!isLoggedIn && !isPublicPath(pathname)) {
+      router.replace('/login')
+    }
+  }, [hydrated, isLoggedIn, pathname, router])
+
   if (!hydrated) {
-    const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/market/'))
-    if (isPublic || pathname === '/login') return <>{children}</>
+    if (isPublicPath(pathname)) return <>{children}</>
     return null
   }
 
-  // 비공개 경로이고 비로그인이면 로그인 페이지로
-  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/market/'))
-  if (!isLoggedIn && !isPublic) {
-    if (typeof window !== 'undefined') window.location.href = '/login'
-    return null
-  }
+  if (!isLoggedIn && !isPublicPath(pathname)) return null
 
   return <>{children}</>
 }
