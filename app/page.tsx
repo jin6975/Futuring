@@ -9,6 +9,7 @@ import BetBottomSheet from '@/components/BetBottomSheet'
 import BottomNav from '@/components/BottomNav'
 import { C } from '@/lib/constants'
 import Link from 'next/link'
+import LoginModal from '@/components/LoginModal'
 
 function fmtPool(n: number) {
   if (n >= 1_000_000) return `${(n/1_000_000).toFixed(1)}M P`
@@ -17,6 +18,7 @@ function fmtPool(n: number) {
 
 export default function HomePage() {
   const debates = usePledgeStore(s => s.debates)
+  const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
   const device = useDevice()
   const isMobile = device === 'mobile'
   const [cat, setCat] = useState('전체')
@@ -25,6 +27,7 @@ export default function HomePage() {
   const [betDebate, setBetDebate] = useState<Debate|null>(null)
   const [betSide, setBetSide] = useState<Side|null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
 
   const categories: string[] = useMemo(() => ['전체', ...Array.from(new Set<string>(debates.map(d => d.category))).sort()], [debates])
   const hotDebate = [...debates].filter(d=>d.status==='live').sort((a,b)=>b.metrics.totalPool-a.metrics.totalPool)[0]
@@ -40,10 +43,15 @@ export default function HomePage() {
   }, [debates, cat, search, sort])
 
   const displayed = isMobile && !showAll && !search ? filtered.slice(0, 6) : filtered
-  const onBet = (d: Debate, s: Side) => { setBetDebate(d); setBetSide(s) }
+  const onBet = (d: Debate, s: Side) => {
+    if (!isLoggedIn) { setShowLoginModal(true); return }
+    setBetDebate(d); setBetSide(s)
+  }
 
   return (
-    <div style={{ minHeight:'100vh', background:C.bg, paddingBottom:isMobile?90:0 }}>
+    <>
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} message="베팅하려면 로그인이 필요해요" />}
+      <div style={{ minHeight:'100vh', background:C.bg, paddingBottom:isMobile?90:0 }}>
       {isMobile ? <FuturingNav/> : <PCNav/>}
 
       <div style={{ maxWidth:isMobile?undefined:1200, margin:'0 auto', padding:isMobile?'16px 16px 0':'40px 40px 60px' }}>
@@ -117,5 +125,6 @@ export default function HomePage() {
       {isMobile && <BottomNav/>}
       <BetBottomSheet debate={betDebate} side={betSide} onClose={()=>{setBetDebate(null);setBetSide(null)}}/>
     </div>
+    </>
   )
 }

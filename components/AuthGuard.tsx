@@ -1,16 +1,17 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { usePledgeStore } from '@/store/usePledgeStore'
 import { supabase } from '@/lib/supabase'
 
+// 비로그인도 접근 가능한 경로
+const PUBLIC_PATHS = ['/', '/market', '/explore', '/tiers', '/login']
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const pathname = usePathname()
   const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
   const loadMarkets = usePledgeStore(s => s.loadMarkets)
   const loadUserData = usePledgeStore(s => s.loadUserData)
-
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -30,7 +31,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const store = usePledgeStore.getState()
         if (!store.currentUser.isLoggedIn) {
-          // 세션 있지만 스토어에 없으면 프로필 조회
           supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({ data: profile }) => {
             if (profile) {
               usePledgeStore.setState({
@@ -52,17 +52,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     })
   }, [loadUserData])
 
-  useEffect(() => {
-    if (!hydrated) return
-    if (!isLoggedIn && pathname !== '/login') router.replace('/login')
-  }, [hydrated, isLoggedIn, pathname, router])
-
   if (!hydrated) {
-    if (pathname === '/login') return <>{children}</>
+    const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/market/'))
+    if (isPublic || pathname === '/login') return <>{children}</>
     return null
   }
 
-  if (!isLoggedIn && pathname !== '/login') return null
+  // 비공개 경로이고 비로그인이면 로그인 페이지로
+  const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith('/market/'))
+  if (!isLoggedIn && !isPublic) {
+    if (typeof window !== 'undefined') window.location.href = '/login'
+    return null
+  }
 
   return <>{children}</>
 }
