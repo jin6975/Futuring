@@ -33,7 +33,7 @@ export default function HomePage() {
   const hotDebate = [...debates].filter(d=>d.status==='live').sort((a,b)=>b.metrics.totalPool-a.metrics.totalPool)[0]
 
   const filtered = useMemo(() => {
-    let list = debates.filter(d=>d.status==='live')
+    let list = debates.filter(d=>d.status==='live'||d.status==='pending_resolution')
     if (cat !== '전체') list = list.filter(d=>d.category===cat)
     if (search.trim()) list = list.filter(d=>d.topic.toLowerCase().includes(search.toLowerCase()))
     if (sort==='latest')   list.sort((a,b)=>b.createdAt-a.createdAt)

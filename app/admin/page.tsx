@@ -137,6 +137,27 @@ export default function AdminPage() {
         {/* 개요 */}
         {tab === 'overview' && (
           <div>
+            {/* 🔴 정산 대기 알림 */}
+            {debates.filter(d => d.status === 'pending_resolution').length > 0 && (
+              <div style={{ background: 'rgba(239,68,68,0.15)', borderRadius: 16, padding: '20px 24px', border: '1.5px solid rgba(239,68,68,0.4)', marginBottom: 24 }}>
+                <p style={{ fontSize: 15, fontWeight: 800, color: '#FCA5A5', marginBottom: 12 }}>
+                  🔴 정산 대기 중 — {debates.filter(d => d.status === 'pending_resolution').length}개 마켓
+                </p>
+                {debates.filter(d => d.status === 'pending_resolution').map(d => (
+                  <div key={d.id} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.topic}</p>
+                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>풀: {fmt(d.metrics.totalPool)} · 마감: {new Date(d.resolvesAt).toLocaleDateString('ko-KR')}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => { resolveDebate(d.id, 'A'); showToast('✅ YES 승리로 정산됩니다') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(52,211,153,0.2)', color: '#34D399', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>YES승</button>
+                      <button onClick={() => { resolveDebate(d.id, 'B'); showToast('✅ NO 승리로 정산됩니다') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.2)', color: '#EF4444', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>NO승</button>
+                      <button onClick={() => { cancelDebate(d.id); showToast('환불 처리됩니다') }} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(148,163,184,0.15)', color: '#94A3B8', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>취소</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 28 }}>
               {([['전체 마켓', String(debates.length), '#fff'], ['진행 중', String(liveDebates.length), '#34D399'], ['종료됨', String(resolved.length), '#94A3B8'], ['총 풀', fmt(totalPool), '#60A5FA']] as [string, string, string][]).map(([l, v, c]) => (
                 <div key={l} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: '20px 24px', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -153,7 +174,7 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                     <span style={{ fontSize: 12, color: '#60A5FA' }}>{fmt(d.metrics.totalPool)}</span>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: d.status === 'live' ? 'rgba(52,211,153,0.15)' : 'rgba(148,163,184,0.15)', color: d.status === 'live' ? '#34D399' : '#94A3B8' }}>
-                      {d.status === 'live' ? '진행중' : d.status === 'resolved' ? '종료' : '취소'}
+                      {d.status === 'live' ? '진행중' : d.status === 'pending_resolution' ? '⏳ 정산대기' : d.status === 'resolved' ? '종료' : '취소'}
                     </span>
                   </div>
                 </div>
@@ -185,8 +206,8 @@ export default function AdminPage() {
                       <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#60A5FA' }}>{fmt(d.metrics.totalPool)}</td>
                       <td style={{ padding: '12px 16px', fontSize: 13, color: '#fff' }}>{Math.round(d.metrics.impliedProbA * 100)}%</td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: d.status === 'live' ? 'rgba(52,211,153,0.2)' : d.status === 'resolved' ? 'rgba(96,165,250,0.2)' : 'rgba(148,163,184,0.2)', color: d.status === 'live' ? '#34D399' : d.status === 'resolved' ? '#60A5FA' : '#94A3B8' }}>
-                          {d.status === 'live' ? '진행중' : d.status === 'resolved' ? '종료' : '취소'}
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 99, background: d.status === 'live' ? 'rgba(52,211,153,0.2)' : d.status === 'pending_resolution' ? 'rgba(251,191,36,0.2)' : d.status === 'resolved' ? 'rgba(96,165,250,0.2)' : 'rgba(148,163,184,0.2)', color: d.status === 'live' ? '#34D399' : d.status === 'pending_resolution' ? '#FBD24' : d.status === 'resolved' ? '#60A5FA' : '#94A3B8' }}>
+                          {d.status === 'live' ? '진행중' : d.status === 'pending_resolution' ? '⏳ 정산대기' : d.status === 'resolved' ? '종료' : '취소'}
                         </span>
                       </td>
                       <td style={{ padding: '12px 16px' }}>

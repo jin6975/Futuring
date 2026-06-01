@@ -59,6 +59,7 @@ export default function MarketPage() {
   const handleBet = () => {
     if (!isLoggedIn) { setShowLoginModal(true); return }
     if (!side || !debate) return
+    if (debate.status !== 'live') { showToast('베팅이 마감된 마켓이에요', 'error'); return }
     if (amount <= 0) { showToast('베팅 금액을 입력해주세요', 'error'); return }
     if (amount > walletBalance) { showToast('잔액이 부족해요', 'error'); return }
     try {
@@ -95,8 +96,17 @@ export default function MarketPage() {
   )
 
   const isBinary = debate.type === 'binary'
+  const isPendingResolution = debate.status === 'pending_resolution'
 
   // ── 베팅 패널 ──────────────────────────────────
+  const PendingBanner = isPendingResolution ? (
+    <div style={{ background: '#FFFBEB', borderRadius: 16, padding: '18px 20px', border: '1.5px solid #FDE68A', textAlign: 'center' as const }}>
+      <p style={{ fontSize: 16, marginBottom: 6 }}>⏳</p>
+      <p style={{ fontSize: 15, fontWeight: 800, color: '#92400E', marginBottom: 4 }}>정산 대기 중</p>
+      <p style={{ fontSize: 13, color: '#B45309' }}>마감 시간이 지났어요. 관리자가 결과를 확정하면 자동으로 정산됩니다.</p>
+    </div>
+  ) : null
+
   const BetPanel = (
     <div style={{ background: C.white, borderRadius: 20, padding: 20, border: `1.5px solid ${side ? C.blue : C.grayBorder}`, transition: 'border-color 0.2s' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -140,7 +150,9 @@ export default function MarketPage() {
       <div style={{ background: C.white, borderRadius: 20, padding: 22, border: `1px solid ${C.grayBorder}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{ fontSize: 12, color: C.gray, fontWeight: 600 }}>{debate.category}</span>
-          <span style={{ fontSize: 11, background: '#F0FDF4', color: C.green, fontWeight: 700, padding: '3px 8px', borderRadius: 99 }}>● Live</span>
+          {debate.status === 'live' && <span style={{ fontSize: 11, background: '#F0FDF4', color: C.green, fontWeight: 700, padding: '3px 8px', borderRadius: 99 }}>● Live</span>}
+          {debate.status === 'pending_resolution' && <span style={{ fontSize: 11, background: '#FFFBEB', color: '#D97706', fontWeight: 700, padding: '3px 8px', borderRadius: 99 }}>⏳ 정산 대기</span>}
+          {debate.status === 'resolved' && <span style={{ fontSize: 11, background: '#EFF6FF', color: C.blue, fontWeight: 700, padding: '3px 8px', borderRadius: 99 }}>✅ 종료</span>}
           <span style={{ marginLeft: 'auto', fontSize: 12, color: C.gray }}>📅 {new Date(debate.resolvesAt).toLocaleDateString('ko-KR')} 마감</span>
         </div>
         <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, color: C.navy, lineHeight: 1.4, marginBottom: 14, letterSpacing: '-0.02em' }}>{debate.topic}</h1>
@@ -165,6 +177,9 @@ export default function MarketPage() {
       {toast && <Toast message={toast.msg} type={toast.type} />}
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} message="베팅하려면 로그인이 필요해요" />}
       <div style={{ padding: '16px 16px 0' }}>{ChartPanel}</div>
+      {isPendingResolution && (
+        <div style={{ padding: '12px 16px' }}>{PendingBanner}</div>
+      )}
       {debate.status === 'live' && (
         <div style={{ padding: '12px 16px' }}>
           {isBinary
@@ -199,14 +214,13 @@ export default function MarketPage() {
         {ChartPanel}
 
         {/* 2열: 베팅 패널 */}
-        {debate.status === 'live' && (
-          <div style={{ position: 'sticky', top: 80 }}>
-            {isBinary
-              ? BetPanel
-              : <MultiOptionBet debate={debate} walletBalance={walletBalance} isLoggedIn={isLoggedIn} onBet={handleMultiBet} onLoginRequired={() => setShowLoginModal(true)} />
-            }
-          </div>
-        )}
+        <div style={{ position: 'sticky', top: 80 }}>
+          {isPendingResolution && PendingBanner}
+          {debate.status === 'live' && (isBinary
+            ? BetPanel
+            : <MultiOptionBet debate={debate} walletBalance={walletBalance} isLoggedIn={isLoggedIn} onBet={handleMultiBet} onLoginRequired={() => setShowLoginModal(true)} />
+          )}
+        </div>
 
         {/* 3열: 커뮤니티 - 항상 보임, 스크롤 고정 */}
         <div style={{ position: 'sticky', top: 80, height: 'calc(100vh - 100px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

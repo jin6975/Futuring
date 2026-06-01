@@ -65,3 +65,14 @@ insert into bounties (id, topic, reward, sponsor, condition, deadline, participa
 ('bounty-001', 'Fed 금리 2026년 4% 미만', 30000, 'fed_watch', '정답 베터 중 최상위 1명', now() + interval '15 days', 42, 'live'),
 ('bounty-002', '비트코인 2억원 돌파', 50000, 'btc_maxi', '정답 + 최대 베팅자', now() + interval '30 days', 128, 'live')
 on conflict (id) do nothing;
+
+-- =============================================
+-- 2차 업데이트: pending_resolution 상태 지원
+-- =============================================
+-- markets 테이블 status 체크 제약 업데이트 (없으면 무시)
+-- pending_resolution 상태는 별도 제약 없이 사용 가능
+
+-- 카카오 소셜 로그인 콜백용 URL 설정은
+-- Supabase 대시보드 > Authentication > URL Configuration에서:
+-- Site URL: https://futuring-three.vercel.app
+-- Redirect URLs에 추가: https://futuring-three.vercel.app/auth/callback

@@ -5,7 +5,7 @@ import { SHOP_ITEMS, type ShopCategory } from '@/lib/shopItems'
 import { supabase } from '@/lib/supabase'
 
 export type Side = string
-export type DebateStatus = 'live' | 'resolved' | 'cancelled'
+export type DebateStatus = 'live' | 'pending_resolution' | 'resolved' | 'cancelled'
 
 export interface MultiOption { id: string; name: string; pool: number }
 export interface ProfileCustomization {
@@ -205,7 +205,21 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
   loadMarkets: async () => {
     const { data, error } = await supabase.from('markets').select('*').order('created_at', { ascending: false })
     if (error || !data) return
-    set({ debates: data.map(rowToDebate) })
+    const debates = data.map(rowToDebate)
+    set({ debates })
+    // 마감 시간 지난 live 마켓 자동으로 pending_resolution 전환
+    const expired = debates.filter((d: Debate) => d.status === 'live' && d.resolvesAt < Date.now())
+    for (const d of expired) {
+      await supabase.from('markets').update({ status: 'pending_resolution' }).eq('id', d.id)
+    }
+    if (expired.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set((s: any) => ({
+        debates: s.debates.map((d: Debate) =>
+          expired.find((e: Debate) => e.id === d.id) ? { ...d, status: 'pending_resolution' as DebateStatus } : d
+        ),
+      }))
+    }
   },
 
   loadUserData: async (userId: string) => {
@@ -367,7 +381,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
   resolveDebate: async (debateId, winningSide) => {
     const state = get()
     const debate = state.debates.find((d: Debate) => d.id===debateId)
-    if (!debate||debate.status!=='live') return
+    if (!debate||(debate.status!=='live'&&debate.status!=='pending_resolution')) return
 
     // Supabase에서 해당 마켓의 모든 PLEDGE 베팅 조회
     const { data: allBets } = await supabase
@@ -437,7 +451,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
   cancelDebate: async (debateId) => {
     const state = get()
     const debate = state.debates.find((d: Debate) => d.id===debateId)
-    if (!debate||debate.status!=='live') return
+    if (!debate||(debate.status!=='live'&&debate.status!=='pending_resolution')) return
 
     const { data: allBets } = await supabase
       .from('bets')

@@ -29,6 +29,7 @@ export default function FuturingMarketCard({ debate: m, onBet }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.blueMid, background: C.bluePale, borderRadius: 6, padding: '3px 8px' }}>{m.category}</span>
         {m.metrics.totalPool > 1_000_000 && <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706', background: '#FFFBEB', borderRadius: 6, padding: '3px 8px' }}>🔥 인기</span>}
+        {m.status === 'pending_resolution' && <span style={{ fontSize: 11, fontWeight: 700, color: '#92400E', background: '#FFFBEB', borderRadius: 6, padding: '3px 8px', border: '1px solid #FDE68A' }}>⏳ 정산대기</span>}
         {m.owner && (
           <a href={`/user/${m.owner}`} onClick={e=>e.stopPropagation()} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>
             <div style={{ width:16, height:16, borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#1D4ED8)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:8, fontWeight:800, flexShrink:0 }}>{m.owner[0].toUpperCase()}</div>
@@ -53,8 +54,8 @@ export default function FuturingMarketCard({ debate: m, onBet }: {
             <span style={{ fontSize: 12, color: C.gray }}>💰 {fmtPool(m.metrics.totalPool)}</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => onBet?.(m, 'A')} style={{ flex: 1, padding: '10px 0', borderRadius: 12, background: C.bluePale, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.blue }}>{m.sideA_name}</button>
-            <button onClick={() => onBet?.(m, 'B')} style={{ flex: 1, padding: '10px 0', borderRadius: 12, background: C.redPale, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.red }}>{m.sideB_name}</button>
+            <button onClick={() => m.status==='live' && onBet?.(m, 'A')} style={{ flex: 1, padding: '10px 0', borderRadius: 12, background: m.status==='pending_resolution'?C.grayLight:C.bluePale, border: 'none', cursor: m.status==='live'?'pointer':'not-allowed', fontSize: 13, fontWeight: 700, color: m.status==='pending_resolution'?C.gray:C.blue }}>{m.sideA_name}</button>
+            <button onClick={() => m.status==='live' && onBet?.(m, 'B')} style={{ flex: 1, padding: '10px 0', borderRadius: 12, background: m.status==='pending_resolution'?C.grayLight:C.redPale, border: 'none', cursor: m.status==='live'?'pointer':'not-allowed', fontSize: 13, fontWeight: 700, color: m.status==='pending_resolution'?C.gray:C.red }}>{m.sideB_name}</button>
           </div>
         </>
       ) : (
