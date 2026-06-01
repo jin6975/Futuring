@@ -36,6 +36,8 @@ function NotifSettingsPanel({ userId }: { userId: string }) {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const { permission, subscribed, subscribe, unsubscribe } = usePushNotification()
+
   if (!loaded) return <div style={{ textAlign:'center', padding:40, color:C.gray }}>불러오는 중...</div>
 
   const ITEMS = [
@@ -44,8 +46,6 @@ function NotifSettingsPanel({ userId }: { userId: string }) {
     { key: 'first_bet_alert', label: '🎯 첫 베팅 알림', desc: '내가 만든 마켓에 처음 베팅이 들어올 때' },
     { key: 'admin_alert', label: '📢 관리자 공지', desc: '운영팀이 보내는 중요 공지' },
   ] as const
-
-  const { permission, subscribed, subscribe, unsubscribe } = usePushNotification()
 
   return (
     <div style={{ background:C.white, borderRadius:20, border:`1px solid ${C.grayBorder}`, overflow:'hidden' }}>
