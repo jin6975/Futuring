@@ -12,7 +12,7 @@ const DAY_MS=86400000
 function useNow(){const[n,setN]=useState(0);useEffect(()=>{setN(Date.now());const t=setInterval(()=>setN(Date.now()),60000);return()=>clearInterval(t)},[]);return n}
 function fmtCountdown(ms:number){if(ms<=0)return'만료됨';const d=Math.floor(ms/DAY_MS);const h=Math.floor((ms%DAY_MS)/3600000);if(d>0)return`${d}일 ${h}시간 남음`;return`${h}시간 남음`}
 export default function ShopPage() {
-  const { walletBalance, customization, purchaseItem, equipItem, unequipCategory, addDemoPoints } = usePledgeStore()
+  const { walletBalance, customization, purchaseItem, equipItem, unequipCategory } = usePledgeStore()
   const device = useDevice(); const isMobile = device==='mobile'
   const [catFilter, setCatFilter] = useState<ShopCategory|'all'>('all')
   const [chargeTab, setChargeTab] = useState(false)
@@ -44,7 +44,7 @@ export default function ShopPage() {
                 { label:'마스터팩', pts:1_000_000, price:'₩1,000,000', badge:'고래' },
                 { label:'웨일팩', pts:10_000_000, price:'₩10,000,000', badge:'🐋' },
               ].map(({ label, pts, price, badge }) => (
-                <button key={label} onClick={() => { addDemoPoints(pts); setChargeTab(false) }}
+                <button key={label} onClick={() => { alert('실제 결제 연동 준비 중입니다.\n현재는 테스트 환경입니다.') }}
                   style={{ background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.2)', borderRadius:16, padding:'16px 14px', cursor:'pointer', textAlign:'left' as const, position:'relative' as const }}>
                   {badge && <span style={{ position:'absolute', top:8, right:8, fontSize:10, fontWeight:700, background:'#F59E0B', color:'#fff', padding:'2px 6px', borderRadius:99 }}>{badge}</span>}
                   <p style={{ fontSize:13, fontWeight:700, color:'rgba(255,255,255,0.7)', marginBottom:4 }}>{label}</p>

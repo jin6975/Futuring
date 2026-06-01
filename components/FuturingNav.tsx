@@ -10,7 +10,6 @@ export default function FuturingNav() {
   const isAdmin = usePledgeStore(s => s.currentUser.isAdmin)
   const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
   const logout = usePledgeStore(s => s.logout)
-  const addDemoPoints = usePledgeStore(s => s.addDemoPoints)
   const router = useRouter()
 
   return (
@@ -19,7 +18,6 @@ export default function FuturingNav() {
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
         {isLoggedIn ? (
           <>
-            <button onClick={() => addDemoPoints(100000)} style={{ padding:'6px 12px', borderRadius:9, background:'#F0FDF4', color:'#16A34A', border:'1.5px solid #86EFAC', cursor:'pointer', fontSize:12, fontWeight:700 }}>+ 충전</button>
             <Link href="/activity" style={{ textDecoration:'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:5, background:C.bluePale, borderRadius:9, padding:'5px 10px' }}>
                 <span style={{ fontSize:13 }}>💎</span>
@@ -27,6 +25,7 @@ export default function FuturingNav() {
               </div>
             </Link>
             {isAdmin && <Link href="/admin" style={{ textDecoration:'none' }}><div style={{ padding:'5px 10px', borderRadius:9, background:'#FEF3C7', border:'1px solid #F59E0B', fontSize:11, fontWeight:700, color:'#92400E' }}>관리자</div></Link>}
+            <button onClick={() => { logout(); router.push('/login') }} style={{ padding:'5px 10px', borderRadius:9, border:`1px solid ${C.grayBorder}`, background:'transparent', color:C.gray, fontSize:12, fontWeight:600, cursor:'pointer' }}>로그아웃</button>
           </>
         ) : (
           <Link href="/login" style={{ textDecoration:'none' }}>

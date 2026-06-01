@@ -11,7 +11,7 @@ import { C } from '@/lib/constants'
 import Link from 'next/link'
 
 export default function ProfilePage() {
-  const { currentUser, walletBalance, ledger, debates, positions, claimDailyReward, logout, setUsername, addDemoPoints, followUser, unfollowUser, getFollowers, getFollowing } = usePledgeStore()
+  const { currentUser, walletBalance, ledger, debates, positions, claimDailyReward, logout, setUsername, followUser, unfollowUser, getFollowers, getFollowing } = usePledgeStore()
   const device = useDevice(); const isMobile = device === 'mobile'
   const router = useRouter()
   const [tab, setTab] = useState<'overview'|'positions'|'history'|'follows'>('overview')
@@ -26,7 +26,6 @@ export default function ProfilePage() {
   const winRate = total > 0 ? Math.round((won/total)*100) : 0
   const pnl = ledger.filter(e=>e.action==='PAYOUT').reduce((s,e)=>s+e.amount,0) - ledger.filter(e=>e.action==='PLEDGE').reduce((s,e)=>s+e.amount,0)
 
-  // 활성 포지션
   const activePositions = (Object.values(positions) as PledgePosition[]).filter(p => {
     const d = debates.find(x=>x.id===p.debateId)
     return d?.status === 'live'
@@ -77,7 +76,6 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
-          {/* 티어 진행바 */}
           <div style={{ background:'rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 16px' }}>
             <TierProgressBar points={walletBalance} />
           </div>
@@ -87,12 +85,11 @@ export default function ProfilePage() {
         <div style={{ display:'flex', gap:8, marginBottom:20 }}>
           <button onClick={()=>{const ok=claimDailyReward();if(ok)setClaimed(true)}} disabled={claimed}
             style={{ flex:1, padding:'12px 0', borderRadius:14, background:claimed?C.grayLight:C.green, color:claimed?C.gray:C.white, border:'none', cursor:claimed?'not-allowed':'pointer', fontSize:14, fontWeight:700 }}>
-            {claimed?'✅ 출석 완료':'🎁 일일 출석 +200P'}
+            {claimed?'✅ 출석 완료':'🎁 일일 출석 보상'}
           </button>
-          <button onClick={()=>addDemoPoints(100000)}
-            style={{ flex:1, padding:'12px 0', borderRadius:14, background:'#F0FDF4', color:'#16A34A', border:'1.5px solid #86EFAC', cursor:'pointer', fontSize:14, fontWeight:700 }}>
-            💰 10만P 충전
-          </button>
+          <Link href="/shop" style={{ flex:1, textDecoration:'none' }}>
+            <button style={{ width:'100%', padding:'12px 0', borderRadius:14, background:C.bluePale, color:C.blue, border:`1.5px solid ${C.blueMid2}`, cursor:'pointer', fontSize:14, fontWeight:700 }}>🛍 상점</button>
+          </Link>
           <Link href="/tiers" style={{ flex:1, textDecoration:'none' }}>
             <button style={{ width:'100%', padding:'12px 0', borderRadius:14, background:C.bluePale, color:C.blue, border:`1.5px solid ${C.blueMid2}`, cursor:'pointer', fontSize:14, fontWeight:700 }}>🏅 티어표</button>
           </Link>
@@ -178,11 +175,11 @@ export default function ProfilePage() {
             {ledger.slice(0,30).map(e=>(
               <div key={e.id} style={{ background:C.white, borderRadius:14, padding:'14px 16px', border:`1px solid ${C.grayBorder}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <div>
-                  <p style={{ fontSize:13, fontWeight:700, color:C.navy, marginBottom:3 }}>{e.debateTopic}</p>
+                  <p style={{ fontSize:13, fontWeight:700, color:C.navy, marginBottom:3 }}>{e.debateTopic || '마켓 거래'}</p>
                   <p style={{ fontSize:11, color:C.gray }}>{new Date(e.timestamp).toLocaleDateString('ko-KR')} · {e.action==='PLEDGE'?'베팅':e.action==='PAYOUT'?'수령':'환불'}</p>
                 </div>
                 <span style={{ fontSize:14, fontWeight:800, color:e.action==='PLEDGE'?C.red:C.green }}>
-                  {e.action==='PLEDGE'?'-':'+'}  {e.amount.toLocaleString()}P
+                  {e.action==='PLEDGE'?'-':'+'}{e.amount.toLocaleString()}P
                 </span>
               </div>
             ))}

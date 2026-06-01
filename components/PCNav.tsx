@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 export default function PCNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { walletBalance, currentUser, logout, addDemoPoints } = usePledgeStore()
+  const { walletBalance, currentUser, logout } = usePledgeStore()
   const isLoggedIn = currentUser.isLoggedIn
 
   return (
@@ -38,7 +38,6 @@ export default function PCNav() {
         {isLoggedIn ? (
           <>
             <TierBadge points={walletBalance} size="sm" />
-            <button onClick={() => addDemoPoints(100000)} style={{ padding:'7px 14px', borderRadius:10, background:'#F0FDF4', color:'#16A34A', border:'1.5px solid #86EFAC', cursor:'pointer', fontSize:13, fontWeight:700 }}>+ 충전</button>
             <Link href="/activity" style={{ textDecoration:'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:6, background:C.bluePale, borderRadius:10, padding:'6px 14px' }}>
                 <span style={{ fontSize:13 }}>💎</span>
