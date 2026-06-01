@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { usePledgeStore } from '@/store/usePledgeStore'
 import { C } from '@/lib/constants'
 import { TierBadge } from '@/components/TierBadge'
+import NotificationBell from '@/components/NotificationBell'
 
 const NAV_ITEMS = [
   { href:'/',         label:'홈',      icon:'⚡' },
@@ -38,6 +39,7 @@ export default function PCNav() {
         {isLoggedIn ? (
           <>
             <TierBadge points={walletBalance} size="sm" />
+            <NotificationBell />
             <Link href="/activity" style={{ textDecoration:'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:6, background:C.bluePale, borderRadius:10, padding:'6px 14px' }}>
                 <span style={{ fontSize:13 }}>💎</span>

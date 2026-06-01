@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePledgeStore , type PledgePosition} from '@/store/usePledgeStore'
+import { useSearchParams } from 'next/navigation'
 import { useDevice } from '@/lib/useDevice'
 import { useRouter } from 'next/navigation'
 import FuturingNav from '@/components/FuturingNav'
@@ -9,12 +10,100 @@ import BottomNav from '@/components/BottomNav'
 import { TierBadge, TierProgressBar } from '@/components/TierBadge'
 import { C } from '@/lib/constants'
 import Link from 'next/link'
+import { fetchNotifSettings, saveNotifSettings } from '@/lib/notifications'
+import { usePushNotification } from '@/lib/usePushNotification'
+
+function NotifSettingsPanel({ userId }: { userId: string }) {
+  const [settings, setSettings] = useState({ payout_alert: true, deadline_alert: true, first_bet_alert: true, admin_alert: true })
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!userId) return
+    fetchNotifSettings(userId).then(s => {
+      setSettings({ payout_alert: s.payout_alert ?? true, deadline_alert: s.deadline_alert ?? true, first_bet_alert: s.first_bet_alert ?? true, admin_alert: s.admin_alert ?? true })
+      setLoaded(true)
+    })
+  }, [userId])
+
+  const handleSave = async () => {
+    if (!userId) return
+    setSaving(true)
+    await saveNotifSettings(userId, settings)
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (!loaded) return <div style={{ textAlign:'center', padding:40, color:C.gray }}>불러오는 중...</div>
+
+  const ITEMS = [
+    { key: 'payout_alert', label: '💰 베팅 정산 알림', desc: '내가 베팅한 마켓이 정산되거나 취소될 때' },
+    { key: 'deadline_alert', label: '⏰ 마감 임박 알림', desc: '내가 베팅한 마켓 마감 24시간 전' },
+    { key: 'first_bet_alert', label: '🎯 첫 베팅 알림', desc: '내가 만든 마켓에 처음 베팅이 들어올 때' },
+    { key: 'admin_alert', label: '📢 관리자 공지', desc: '운영팀이 보내는 중요 공지' },
+  ] as const
+
+  const { permission, subscribed, subscribe, unsubscribe } = usePushNotification()
+
+  return (
+    <div style={{ background:C.white, borderRadius:20, border:`1px solid ${C.grayBorder}`, overflow:'hidden' }}>
+      <div style={{ padding:'16px 20px', borderBottom:`1px solid ${C.grayBorder}` }}>
+        <p style={{ fontSize:15, fontWeight:800, color:C.navy }}>🔔 알림 설정</p>
+        <p style={{ fontSize:12, color:C.gray, marginTop:2 }}>받고 싶은 알림 유형을 선택하세요</p>
+      </div>
+      {/* 브라우저 푸시 알림 */}
+      <div style={{ padding:'14px 20px', borderBottom:`1px solid ${C.grayBorder}`, background:'#F8FAFF' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <p style={{ fontSize:14, fontWeight:700, color:C.navy }}>📲 브라우저 푸시 알림</p>
+            <p style={{ fontSize:12, color:C.gray, marginTop:2 }}>사이트 밖에서도 핸드폰/PC에 알림이 와요</p>
+            {permission === 'denied' && <p style={{ fontSize:11, color:C.red, marginTop:4 }}>브라우저 설정에서 알림을 허용해주세요</p>}
+          </div>
+          {permission !== 'denied' && (
+            <button onClick={subscribed ? unsubscribe : subscribe}
+              style={{ padding:'8px 16px', borderRadius:10, border:`1.5px solid ${subscribed?C.blue:C.grayBorder}`, background:subscribed?C.bluePale:'transparent', color:subscribed?C.blue:C.gray, fontSize:13, fontWeight:700, cursor:'pointer', flexShrink:0 }}>
+              {subscribed ? '✅ 허용됨' : '허용하기'}
+            </button>
+          )}
+        </div>
+      </div>
+      <div style={{ padding:'8px 0' }}>
+        {ITEMS.map(item => (
+          <div key={item.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 20px', borderBottom:`1px solid ${C.grayBorder}` }}>
+            <div>
+              <p style={{ fontSize:14, fontWeight:700, color:C.navy }}>{item.label}</p>
+              <p style={{ fontSize:12, color:C.gray, marginTop:2 }}>{item.desc}</p>
+            </div>
+            <button
+              onClick={() => setSettings(s => ({ ...s, [item.key]: !s[item.key] }))}
+              style={{ width:44, height:24, borderRadius:99, border:'none', cursor:'pointer', background:settings[item.key]?C.blue:C.grayBorder, position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+              <div style={{ position:'absolute', top:2, left:settings[item.key]?22:2, width:20, height:20, borderRadius:'50%', background:'#fff', transition:'left 0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'16px 20px' }}>
+        <button onClick={handleSave} disabled={saving}
+          style={{ width:'100%', padding:'12px 0', borderRadius:12, background:saved?C.green:C.blue, color:'#fff', border:'none', cursor:'pointer', fontSize:14, fontWeight:700 }}>
+          {saved ? '✅ 저장됨' : saving ? '저장 중...' : '설정 저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function ProfilePage() {
   const { currentUser, walletBalance, ledger, debates, positions, claimDailyReward, logout, setUsername, followUser, unfollowUser, getFollowers, getFollowing } = usePledgeStore()
   const device = useDevice(); const isMobile = device === 'mobile'
   const router = useRouter()
-  const [tab, setTab] = useState<'overview'|'positions'|'history'|'follows'>('overview')
+  const searchParams = useSearchParams()
+  const [tab, setTab] = useState<'overview'|'positions'|'history'|'follows'|'notifications'>(
+    (searchParams.get('tab') as 'notifications') ?? 'overview'
+  )
+  const [notifSettings, setNotifSettings] = useState({ payout_alert: true, deadline_alert: true, first_bet_alert: true, admin_alert: true })
+  const [notifLoaded, setNotifLoaded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(currentUser.username)
   const [claimed, setClaimed] = useState(false)
@@ -97,7 +186,7 @@ export default function ProfilePage() {
 
         {/* 탭 */}
         <div style={{ display:'flex', background:C.grayLight, borderRadius:12, padding:4, marginBottom:20 }}>
-          {([['overview','📊 개요'],['positions','🎯 포지션'],['history','📋 거래내역'],['follows','👥 팔로우']] as const).map(([k,l])=>(
+          {([['overview','📊 개요'],['positions','🎯 포지션'],['history','📋 거래내역'],['follows','👥 팔로우'],['notifications','🔔 알림']] as const).map(([k,l])=>(
             <button key={k} onClick={()=>setTab(k)} style={{ flex:1, padding:'10px 0', borderRadius:9, border:'none', cursor:'pointer', fontSize:isMobile?12:14, fontWeight:700, background:tab===k?C.white:'transparent', color:tab===k?C.navy:C.gray, boxShadow:tab===k?'0 1px 4px rgba(0,0,0,0.08)':'none' }}>{l}</button>
           ))}
         </div>
@@ -209,6 +298,11 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* 알림 설정 탭 */}
+        {tab==='notifications'&&(
+          <NotifSettingsPanel userId={currentUser.userId ?? ''} />
         )}
 
         {/* 로그아웃 */}

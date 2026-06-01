@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { usePledgeStore } from '@/store/usePledgeStore'
 import { C } from '@/lib/constants'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function FuturingNav() {
   const balance = usePledgeStore(s => s.walletBalance)
@@ -24,6 +25,7 @@ export default function FuturingNav() {
                 <span style={{ fontSize:13, fontWeight:700, color:C.blue }}>{balance.toLocaleString()} P</span>
               </div>
             </Link>
+            <NotificationBell />
             {isAdmin && <Link href="/admin" style={{ textDecoration:'none' }}><div style={{ padding:'5px 10px', borderRadius:9, background:'#FEF3C7', border:'1px solid #F59E0B', fontSize:11, fontWeight:700, color:'#92400E' }}>관리자</div></Link>}
             <button onClick={() => { logout(); router.push('/login') }} style={{ padding:'5px 10px', borderRadius:9, border:`1px solid ${C.grayBorder}`, background:'transparent', color:C.gray, fontSize:12, fontWeight:600, cursor:'pointer' }}>로그아웃</button>
           </>

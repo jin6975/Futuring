@@ -2,14 +2,15 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePledgeStore, type WhaleBattle, type AuctionItem, type Bounty, type EconomySettings } from '@/store/usePledgeStore'
+import { createAdminBroadcast } from '@/lib/notifications'
 import { C } from '@/lib/constants'
 
 function fmt(n: number) { if (n >= 10000) return `${(n / 10000).toFixed(1)}만P`; return `${n.toLocaleString()}P` }
 
-type TabKey = 'overview' | 'markets' | 'create' | 'users' | 'economy' | 'battles' | 'bounties'
+type TabKey = 'overview' | 'markets' | 'create' | 'users' | 'economy' | 'battles' | 'bounties' | 'notify'
 const TAB_LABELS: Record<TabKey, string> = {
   overview: '📊 개요', markets: '📋 마켓 관리', create: '➕ 마켓 생성',
-  users: '👥 포인트 관리', economy: '⚙️ 경제 설정', battles: '⚔️ 배틀 판정', bounties: '💰 현상금 관리'
+  users: '👥 포인트 관리', economy: '⚙️ 경제 설정', battles: '⚔️ 배틀 판정', bounties: '💰 현상금 관리', notify: '📢 공지 발송'
 }
 
 export default function AdminPage() {
@@ -38,6 +39,10 @@ export default function AdminPage() {
   const [pointAmount, setPointAmount] = useState(10000)
 
   // 현상금 생성
+  const [notifyTitle, setNotifyTitle] = useState('')
+  const [notifyBody, setNotifyBody] = useState('')
+  const [notifyLink, setNotifyLink] = useState('')
+  const [notifySending, setNotifySending] = useState(false)
   const [bTopic, setBTopic] = useState('')
   const [bReward, setBReward] = useState(10000)
   const [bCondition, setBCondition] = useState('')
@@ -100,6 +105,15 @@ export default function AdminPage() {
     if (!winner?.trim()) { showToast('당첨자 아이디를 입력해주세요', 'error'); return }
     await resolveBounty(bountyId, winner.trim())
     showToast(`✅ 현상금 지급 완료 — 당첨자: @${winner}`)
+  }
+
+  const handleBroadcast = async () => {
+    if (!notifyTitle.trim() || !notifyBody.trim()) { showToast('제목과 내용을 입력해주세요', 'error'); return }
+    setNotifySending(true)
+    await createAdminBroadcast(notifyTitle, notifyBody, notifyLink || undefined)
+    setNotifySending(false)
+    setNotifyTitle(''); setNotifyBody(''); setNotifyLink('')
+    showToast('✅ 전체 유저에게 공지를 발송했어요!')
   }
 
   const handleCreateBounty = async () => {
@@ -421,6 +435,38 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+
+        {/* 공지 발송 */}
+        {tab === 'notify' && (
+          <div style={{ maxWidth: 560 }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: 28, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>📢 전체 유저 공지 발송</p>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 24 }}>모든 유저의 알림함에 즉시 전달됩니다</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>제목 *</label>
+                  <input value={notifyTitle} onChange={e => setNotifyTitle(e.target.value)} placeholder="예) 🎉 신규 마켓 오픈" style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>내용 *</label>
+                  <textarea value={notifyBody} onChange={e => setNotifyBody(e.target.value)} placeholder="공지 내용을 입력하세요" rows={4} style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none', resize: 'vertical' as const }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>링크 (선택)</label>
+                  <input value={notifyLink} onChange={e => setNotifyLink(e.target.value)} placeholder="예) /whale 또는 /market/xxx" style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 14, boxSizing: 'border-box' as const, outline: 'none' }} />
+                </div>
+                <div style={{ background: 'rgba(251,191,36,0.1)', borderRadius: 12, padding: '12px 16px', border: '1px solid rgba(251,191,36,0.2)' }}>
+                  <p style={{ fontSize: 12, color: '#FCD34D', fontWeight: 600 }}>⚠️ 전체 유저에게 발송됩니다. 신중하게 작성해주세요.</p>
+                </div>
+                <button onClick={handleBroadcast} disabled={notifySending || !notifyTitle.trim() || !notifyBody.trim()}
+                  style={{ padding: '13px 0', borderRadius: 12, background: notifyTitle.trim() && notifyBody.trim() ? '#F59E0B' : 'rgba(255,255,255,0.08)', color: notifyTitle.trim() && notifyBody.trim() ? '#fff' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+                  {notifySending ? '발송 중...' : '📢 전체 발송'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { calcMarketMetrics, calcMarginalImpact, type MarketMetrics } from '@/lib/marketMath'
 import { SHOP_ITEMS, type ShopCategory } from '@/lib/shopItems'
 import { supabase } from '@/lib/supabase'
+import { createNotification } from '@/lib/notifications'
 
 export type Side = string
 export type DebateStatus = 'live' | 'pending_resolution' | 'resolved' | 'cancelled'
@@ -285,6 +286,16 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
     const posKey = `${debateId}_${side}`
     const entryId = generateId()
 
+    // 첫 베팅이면 마켓 주인에게 알림
+    if (state.currentUser.userId && debate.owner && debate.owner !== state.currentUser.username) {
+      const pledgesOnDebate = state.ledger.filter((e: LedgerEntry) => e.debateId === debateId && e.action === 'PLEDGE').length
+      if (pledgesOnDebate === 0) {
+        const { data: ownerProfile } = await supabase.from('profiles').select('id').eq('username', debate.owner).single()
+        if (ownerProfile) {
+          await createNotification(ownerProfile.id, 'first_bet', '🎯 첫 베팅 발생!', `${debate.topic}에 첫 베팅이 들어왔어요!`, `/market/${debateId}`)
+        }
+      }
+    }
     if (state.currentUser.userId) {
       await supabase.from('bets').insert({
         id: entryId,
@@ -426,6 +437,13 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
               balance_after: newBalance,
               action: 'PAYOUT',
             })
+            // 정산 알림
+            await createNotification(
+              bet.user_id, 'payout',
+              '🎉 베팅 수익 정산',
+              `${debate.topic} — +${payout.toLocaleString()}P 지급됐어요!`,
+              `/market/${debateId}`
+            )
           }
         }
       }
@@ -472,6 +490,13 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
             market_id: debateId, side: bet.side, amount: bet.amount,
             balance_before: profile.wallet_balance, balance_after: newBalance, action: 'REFUND',
           })
+          // 환불 알림
+          await createNotification(
+            bet.user_id, 'cancel',
+            '↩️ 마켓 취소 환불',
+            `${debate.topic} — ${bet.amount.toLocaleString()}P 환불됐어요.`,
+            `/market/${debateId}`
+          )
         }
       }
     }
