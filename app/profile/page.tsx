@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { usePledgeStore , type PledgePosition} from '@/store/usePledgeStore'
 import { useSearchParams } from 'next/navigation'
 import { useDevice } from '@/lib/useDevice'
@@ -94,7 +94,7 @@ function NotifSettingsPanel({ userId }: { userId: string }) {
   )
 }
 
-export default function ProfilePage() {
+function ProfileInner() {
   const { currentUser, walletBalance, ledger, debates, positions, claimDailyReward, logout, setUsername, followUser, unfollowUser, getFollowers, getFollowing } = usePledgeStore()
   const device = useDevice(); const isMobile = device === 'mobile'
   const router = useRouter()
@@ -312,5 +312,13 @@ export default function ProfilePage() {
       </div>
       {isMobile&&<BottomNav/>}
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>로딩 중...</div>}>
+      <ProfileInner />
+    </Suspense>
   )
 }
