@@ -179,6 +179,9 @@ function ProfileInner() {
           <Link href="/shop" style={{ flex:1, textDecoration:'none' }}>
             <button style={{ width:'100%', padding:'12px 0', borderRadius:14, background:C.bluePale, color:C.blue, border:`1.5px solid ${C.blueMid2}`, cursor:'pointer', fontSize:14, fontWeight:700 }}>🛍 상점</button>
           </Link>
+          <Link href="/transfer" style={{ flex:1, textDecoration:'none' }}>
+            <button style={{ width:'100%', padding:'12px 0', borderRadius:14, background:C.bluePale, color:C.blue, border:`1.5px solid ${C.blueMid2}`, cursor:'pointer', fontSize:14, fontWeight:700 }}>💸 송금</button>
+          </Link>
           <Link href="/tiers" style={{ flex:1, textDecoration:'none' }}>
             <button style={{ width:'100%', padding:'12px 0', borderRadius:14, background:C.bluePale, color:C.blue, border:`1.5px solid ${C.blueMid2}`, cursor:'pointer', fontSize:14, fontWeight:700 }}>🏅 티어표</button>
           </Link>

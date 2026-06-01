@@ -5,9 +5,9 @@ import { C } from '@/lib/constants'
 
 const TABS = [
   { id:'home',    href:'/',        icon:'⚡', label:'홈' },
-  { id:'whale',   href:'/whale',   icon:'🐋', label:'고래' },
+  { id:'explore', href:'/explore', icon:'🔍', label:'탐색' },
   { id:'create',  href:'/create',  icon:'＋', label:'',   special:true },
-  { id:'lp',      href:'/lp',      icon:'💧', label:'LP' },
+  { id:'ranking', href:'/ranking', icon:'🏆', label:'랭킹' },
   { id:'profile', href:'/profile', icon:'👤', label:'프로필' },
 ]
 

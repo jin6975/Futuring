@@ -9,6 +9,8 @@ import NotificationBell from '@/components/NotificationBell'
 
 const NAV_ITEMS = [
   { href:'/',         label:'홈',      icon:'⚡' },
+  { href:'/explore',  label:'탐색',    icon:'🔍' },
+  { href:'/ranking',  label:'랭킹',    icon:'🏆' },
   { href:'/whale',    label:'고래',    icon:'🐋' },
   { href:'/lp',       label:'LP 예치', icon:'💧' },
   { href:'/shop',     label:'상점',    icon:'🛍' },

@@ -1,7 +1,8 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Suspense } from 'react'
 import { usePledgeStore, type Debate, type Side } from '@/store/usePledgeStore'
 import { useDevice } from '@/lib/useDevice'
+import { useSearchParams, useRouter } from 'next/navigation'
 import FuturingNav from '@/components/FuturingNav'
 import PCNav from '@/components/PCNav'
 import BottomNav from '@/components/BottomNav'
@@ -9,90 +10,141 @@ import FuturingMarketCard from '@/components/FuturingMarketCard'
 import BetBottomSheet from '@/components/BetBottomSheet'
 import { C } from '@/lib/constants'
 
-const MOBILE_INITIAL = 3
+const SORTS = [
+  { id: 'latest',   label: '최신순' },
+  { id: 'deadline', label: '마감임박' },
+  { id: 'volume',   label: '거래량' },
+  { id: 'prob_high', label: 'YES 높은순' },
+  { id: 'prob_low',  label: 'YES 낮은순' },
+] as const
+type SortKey = typeof SORTS[number]['id']
 
-export default function ExplorePage() {
+function ExploreInner() {
   const debates = usePledgeStore(s => s.debates)
-  const device = useDevice()
-  const isMobile = device === 'mobile'
-  const [search, setSearch] = useState('')
+  const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
+  const device = useDevice(); const isMobile = device === 'mobile'
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
+  const [cat, setCat] = useState(searchParams.get('cat') ?? '전체')
+  const [sort, setSort] = useState<SortKey>('latest')
+  const [showResolved, setShowResolved] = useState(false)
   const [betDebate, setBetDebate] = useState<Debate | null>(null)
   const [betSide, setBetSide] = useState<Side | null>(null)
-  const [expandedCats, setExpandedCats] = useState<Record<string, number>>({})
 
-  const categories = useMemo(() => {
-    return Array.from(new Set<string>(debates.map(d => d.category))) as string[]
-  }, [debates])
+  const categories = useMemo(() => ['전체', ...Array.from(new Set<string>(debates.map(d => d.category))).sort()], [debates])
 
-  const filtered = (cat: string): Debate[] =>
-    debates.filter(d =>
-      d.status === 'live' &&
-      d.category === cat &&
-      (search === '' || d.topic.toLowerCase().includes(search.toLowerCase()))
-    )
-
-  const getVisible = (cat: string, total: number) => {
-    if (!isMobile) return total
-    return expandedCats[cat] ?? MOBILE_INITIAL
-  }
-
-  const handleMore = (cat: string) => {
-    setExpandedCats(prev => ({ ...prev, [cat]: (prev[cat] ?? MOBILE_INITIAL) + 3 }))
-  }
+  const filtered = useMemo(() => {
+    let list = debates.filter(d => showResolved ? true : (d.status === 'live' || d.status === 'pending_resolution'))
+    if (cat !== '전체') list = list.filter(d => d.category === cat)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(d =>
+        d.topic.toLowerCase().includes(q) ||
+        d.description?.toLowerCase().includes(q) ||
+        d.category.toLowerCase().includes(q) ||
+        d.sideA_name?.toLowerCase().includes(q) ||
+        d.sideB_name?.toLowerCase().includes(q) ||
+        (d.owner ?? '').toLowerCase().includes(q)
+      )
+    }
+    if (sort === 'latest')    list = [...list].sort((a, b) => b.createdAt - a.createdAt)
+    if (sort === 'deadline')  list = [...list].sort((a, b) => a.resolvesAt - b.resolvesAt)
+    if (sort === 'volume')    list = [...list].sort((a, b) => b.metrics.totalPool - a.metrics.totalPool)
+    if (sort === 'prob_high') list = [...list].sort((a, b) => b.metrics.impliedProbA - a.metrics.impliedProbA)
+    if (sort === 'prob_low')  list = [...list].sort((a, b) => a.metrics.impliedProbA - b.metrics.impliedProbA)
+    return list
+  }, [debates, cat, search, sort, showResolved])
 
   const Nav = isMobile ? FuturingNav : PCNav
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Nav />
-      <div style={isMobile ? { padding: '20px 16px 100px' } : { maxWidth: 1100, margin: '0 auto', padding: '40px 40px 60px' }}>
-        {!isMobile && <h1 style={{ fontSize: 24, fontWeight: 800, color: C.navy, marginBottom: 16 }}>탐색</h1>}
-        <div style={{ position: 'relative', marginBottom: 24 }}>
-          <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="8" stroke={C.gray} strokeWidth="2" />
-            <path d="m21 21-4.35-4.35" stroke={C.gray} strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="카테고리, 키워드 검색..."
-            style={{ width: '100%', padding: '12px 16px 12px 38px', border: `1.5px solid ${C.grayBorder}`, borderRadius: 14, fontSize: 14, outline: 'none', color: C.navy, background: C.white, boxSizing: 'border-box' as const }} />
-          {search && <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.gray }}>✕</button>}
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: isMobile ? '20px 16px 100px' : '32px 32px 60px' }}>
+
+        {/* 검색 헤더 */}
+        <div style={{ marginBottom: 20 }}>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: C.navy, marginBottom: 14 }}>🔍 마켓 탐색</h1>
+          <div style={{ position: 'relative' }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="마켓 검색 — 주제, 카테고리, 작성자 검색 가능"
+              style={{ width: '100%', padding: '14px 48px 14px 48px', borderRadius: 16, border: `2px solid ${search ? C.blue : C.grayBorder}`, fontSize: 15, background: C.white, boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.15s' }}
+            />
+            <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 18 }}>🔍</span>
+            {search && (
+              <button onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: C.grayLight, border: 'none', cursor: 'pointer', borderRadius: '50%', width: 24, height: 24, fontSize: 12, color: C.gray }}>✕</button>
+            )}
+          </div>
         </div>
 
-        {search && categories.every(cat => filtered(cat).length === 0) && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: C.gray }}>
-            <p style={{ fontSize: 36, marginBottom: 12 }}>🔍</p>
+        {/* 카테고리 */}
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
+          {categories.map(c => (
+            <button key={c} onClick={() => setCat(c)}
+              style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: cat === c ? C.navy : C.white, color: cat === c ? '#fff' : C.gray, boxShadow: cat === c ? '0 2px 8px rgba(0,0,0,0.15)' : `0 0 0 1.5px ${C.grayBorder}` }}>
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* 정렬 + 필터 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' as const }}>
+          <div style={{ display: 'flex', gap: 6, flex: 1, overflowX: 'auto' }}>
+            {SORTS.map(s => (
+              <button key={s.id} onClick={() => setSort(s.id)}
+                style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: sort === s.id ? C.blue : C.grayLight, color: sort === s.id ? '#fff' : C.gray }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowResolved(r => !r)}
+            style={{ flexShrink: 0, padding: '7px 12px', borderRadius: 10, border: `1.5px solid ${showResolved ? C.blue : C.grayBorder}`, cursor: 'pointer', fontSize: 12, fontWeight: 700, background: showResolved ? C.bluePale : C.white, color: showResolved ? C.blue : C.gray }}>
+            {showResolved ? '✅ 종료 포함' : '종료 포함'}
+          </button>
+        </div>
+
+        {/* 결과 */}
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 14, color: C.gray, fontWeight: 600 }}>
+            {search ? `"${search}" 검색 결과 ` : ''}<strong style={{ color: C.navy }}>{filtered.length}개</strong>
+          </p>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', background: C.white, borderRadius: 20, border: `1px solid ${C.grayBorder}` }}>
+            <p style={{ fontSize: 32, marginBottom: 12 }}>🔍</p>
             <p style={{ fontSize: 16, fontWeight: 700, color: C.navy, marginBottom: 6 }}>검색 결과가 없어요</p>
-            <p style={{ fontSize: 14 }}>'{search}'에 해당하는 마켓을 찾지 못했어요</p>
+            <p style={{ fontSize: 14, color: C.gray }}>다른 키워드로 검색해보세요</p>
+            <button onClick={() => { setSearch(''); setCat('전체') }}
+              style={{ marginTop: 16, padding: '10px 24px', borderRadius: 12, background: C.blue, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              전체 보기
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 16 }}>
+            {filtered.map(d => (
+              <FuturingMarketCard key={d.id} debate={d} onBet={(debate, side) => {
+                if (!isLoggedIn) { router.push('/login'); return }
+                setBetDebate(debate); setBetSide(side)
+              }} />
+            ))}
           </div>
         )}
-
-        {categories.map(cat => {
-          const items = filtered(cat)
-          if (!items.length) return null
-          const visibleCount = getVisible(cat, items.length)
-          const visible = items.slice(0, visibleCount)
-          const hasMore = isMobile && visibleCount < items.length
-          return (
-            <div key={cat} style={{ marginBottom: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>{cat}</span>
-                <span style={{ fontSize: 12, color: C.gray }}>{items.length}개</span>
-              </div>
-              <div style={isMobile ? { display: 'flex', flexDirection: 'column', gap: 10 } : { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-                {visible.map(d => (
-                  <FuturingMarketCard key={d.id} debate={d} onBet={(debate, side) => { setBetDebate(debate); setBetSide(side) }} />
-                ))}
-              </div>
-              {hasMore && (
-                <button onClick={() => handleMore(cat)} style={{ width: '100%', marginTop: 12, padding: '12px 0', borderRadius: 12, border: `1.5px solid ${C.grayBorder}`, background: C.white, color: C.gray, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                  더보기 ({items.length - visibleCount}개 남음) ↓
-                </button>
-              )}
-            </div>
-          )
-        })}
       </div>
+
+      {betDebate && betSide && (
+        <BetBottomSheet debate={betDebate} side={betSide} onClose={() => { setBetDebate(null); setBetSide(null) }} />
+      )}
       {isMobile && <BottomNav />}
-      <BetBottomSheet debate={betDebate} side={betSide} onClose={() => { setBetDebate(null); setBetSide(null) }} />
     </div>
   )
+}
+
+export default function ExplorePage() {
+  return <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>로딩 중...</div>}><ExploreInner /></Suspense>
 }
