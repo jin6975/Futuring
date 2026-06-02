@@ -31,7 +31,8 @@ export default function MarketPage() {
   const router = useRouter()
   const device = useDevice()
   const isMobile = device === 'mobile'
-  const { debates, makePledge, walletBalance, currentUser } = usePledgeStore()
+  const { debates, makePledge, walletBalance, currentUser, toggleBookmark } = usePledgeStore()
+  const bookmarks = usePledgeStore(s => s.bookmarks)
   const debate = debates.find(d => d.id === id)
   const isLoggedIn = currentUser.isLoggedIn
 
@@ -99,7 +100,6 @@ export default function MarketPage() {
   const isPendingResolution = debate.status === 'pending_resolution'
 
   // ── 베팅 패널 ──────────────────────────────────
-  const bookmarks = usePledgeStore(s => s.bookmarks)
   const bookmarked = !!(bookmarks as {marketId:string}[]).find(b => b.marketId === (debate?.id ?? ''))
 
   const [showReport, setShowReport] = useState(false)
