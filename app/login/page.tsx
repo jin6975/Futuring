@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
+  const [signupDone, setSignupDone] = useState(false)
 
   const handleSubmit = async () => {
     setError('')
@@ -30,8 +31,9 @@ export default function LoginPage() {
       if (password.length < 6) { setLoading(false); return setError('비밀번호는 6자 이상이어야 해요') }
       const ok = await signup(username, password)
       if (!ok) { setLoading(false); return setError('이미 사용 중인 아이디예요') }
-      await login(username, password)
-      router.push('/')
+      setLoading(false)
+      setSignupDone(true)
+      return
     } else {
       const ok = await login(username, password)
       if (!ok) { setLoading(false); return setError('아이디 또는 비밀번호가 틀렸어요') }
@@ -59,6 +61,26 @@ export default function LoginPage() {
       setSocialLoading(null)
     }
   }
+
+  if (signupDone) return (
+    <div style={{ minHeight:'100vh', background:C.bg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'0 24px' }}>
+      <div style={{ width:'100%', maxWidth:400, background:C.white, borderRadius:24, padding:40, boxShadow:'0 4px 40px rgba(29,78,216,0.08)', border:`1px solid ${C.grayBorder}`, textAlign:'center' as const }}>
+        <div style={{ fontSize:64, marginBottom:20 }}>🎉</div>
+        <p style={{ fontSize:24, fontWeight:900, color:C.navy, marginBottom:8 }}>가입 완료!</p>
+        <p style={{ fontSize:15, color:C.gray, marginBottom:4 }}>@{username}님 환영해요</p>
+        <div style={{ background:C.bluePale, borderRadius:16, padding:'20px 24px', margin:'24px 0', border:`1px solid ${C.blueMid2}` }}>
+          <p style={{ fontSize:13, color:C.blue, fontWeight:600, marginBottom:6 }}>🎁 가입 축하 포인트</p>
+          <p style={{ fontSize:32, fontWeight:900, color:C.navy }}>5,000 P</p>
+          <p style={{ fontSize:12, color:C.gray, marginTop:4 }}>지갑에 자동으로 지급됐어요!</p>
+        </div>
+        <p style={{ fontSize:13, color:C.gray, marginBottom:24, lineHeight:1.6 }}>매일 출석 체크로 포인트를 모으고<br />마켓에서 예측으로 수익을 만들어보세요!</p>
+        <button onClick={async () => { await login(username, password); router.push('/') }}
+          style={{ width:'100%', padding:'14px 0', borderRadius:14, background:C.blue, color:C.white, border:'none', cursor:'pointer', fontSize:15, fontWeight:800, boxShadow:'0 4px 16px rgba(29,78,216,0.3)' }}>
+          시작하기 →
+        </button>
+      </div>
+    </div>
+  )
 
   const form = (
     <div>

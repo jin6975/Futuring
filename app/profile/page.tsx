@@ -312,6 +312,11 @@ function ProfileInner() {
         <div style={{ marginTop:24 }}>
           <button onClick={()=>{logout();router.push('/login')}} style={{ width:'100%', padding:'13px 0', borderRadius:14, background:C.grayLight, color:C.gray, border:'none', cursor:'pointer', fontSize:14, fontWeight:700 }}>로그아웃</button>
         </div>
+        <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:20, paddingBottom:8 }}>
+          <Link href="/terms" style={{ fontSize:12, color:C.gray, textDecoration:'none' }}>이용약관</Link>
+          <span style={{ fontSize:12, color:C.grayBorder }}>·</span>
+          <Link href="/privacy" style={{ fontSize:12, color:C.gray, textDecoration:'none' }}>개인정보처리방침</Link>
+        </div>
       </div>
       {isMobile&&<BottomNav/>}
     </div>

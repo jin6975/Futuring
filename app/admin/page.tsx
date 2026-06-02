@@ -7,10 +7,11 @@ import { C } from '@/lib/constants'
 
 function fmt(n: number) { if (n >= 10000) return `${(n / 10000).toFixed(1)}만P`; return `${n.toLocaleString()}P` }
 
-type TabKey = 'overview' | 'markets' | 'create' | 'users' | 'economy' | 'battles' | 'bounties' | 'notify'
+type TabKey = 'overview' | 'markets' | 'create' | 'users' | 'economy' | 'battles' | 'bounties' | 'notify' | 'members' | 'reports' | 'stats'
 const TAB_LABELS: Record<TabKey, string> = {
   overview: '📊 개요', markets: '📋 마켓 관리', create: '➕ 마켓 생성',
-  users: '👥 포인트 관리', economy: '⚙️ 경제 설정', battles: '⚔️ 배틀 판정', bounties: '💰 현상금 관리', notify: '📢 공지 발송'
+  users: '👥 포인트 관리', economy: '⚙️ 경제 설정', battles: '⚔️ 배틀 판정', bounties: '💰 현상금 관리', notify: '📢 공지 발송',
+  members: '👤 유저 목록', reports: '🚨 신고 관리', stats: '📈 통계'
 }
 
 export default function AdminPage() {
@@ -39,6 +40,11 @@ export default function AdminPage() {
   const [pointAmount, setPointAmount] = useState(10000)
 
   // 현상금 생성
+  const [memberSearch, setMemberSearch] = useState('')
+  const [members, setMembers] = useState<{id:string;username:string;wallet_balance:number;created_at:string}[]>([])
+  const [membersLoaded, setMembersLoaded] = useState(false)
+  const [reports, setReports] = useState<{id:string;reporter_username:string;target_type:string;target_id:string;reason:string;status:string;created_at:string}[]>([])
+  const [reportsLoaded, setReportsLoaded] = useState(false)
   const [notifyTitle, setNotifyTitle] = useState('')
   const [notifyBody, setNotifyBody] = useState('')
   const [notifyLink, setNotifyLink] = useState('')
@@ -105,6 +111,37 @@ export default function AdminPage() {
     if (!winner?.trim()) { showToast('당첨자 아이디를 입력해주세요', 'error'); return }
     await resolveBounty(bountyId, winner.trim())
     showToast(`✅ 현상금 지급 완료 — 당첨자: @${winner}`)
+  }
+
+  const loadMembers = async () => {
+    const { supabase } = await import('@/lib/supabase')
+    const q = memberSearch.trim()
+    let query = supabase.from('profiles').select('id, username, wallet_balance, created_at').order('created_at', { ascending: false }).limit(50)
+    if (q) query = query.ilike('username', `%${q}%`)
+    const { data } = await query
+    if (data) setMembers(data)
+    setMembersLoaded(true)
+  }
+
+  const loadReports = async () => {
+    const { supabase } = await import('@/lib/supabase')
+    const { data } = await supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(100)
+    if (data) setReports(data)
+    setReportsLoaded(true)
+  }
+
+  const handleDismissReport = async (reportId: string) => {
+    const { supabase } = await import('@/lib/supabase')
+    await supabase.from('reports').update({ status: 'dismissed' }).eq('id', reportId)
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'dismissed' } : r))
+    showToast('신고 기각됨')
+  }
+
+  const handleResolveReport = async (reportId: string) => {
+    const { supabase } = await import('@/lib/supabase')
+    await supabase.from('reports').update({ status: 'resolved' }).eq('id', reportId)
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'resolved' } : r))
+    showToast('신고 처리 완료')
   }
 
   const handleBroadcast = async () => {
@@ -466,6 +503,109 @@ export default function AdminPage() {
                   {notifySending ? '발송 중...' : '📢 전체 발송'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* 유저 목록 */}
+        {tab === 'members' && (
+          <div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="아이디 검색"
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 14, outline: 'none' }} />
+              <button onClick={loadMembers} style={{ padding: '10px 20px', borderRadius: 10, background: C.blue, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>검색</button>
+            </div>
+            {!membersLoaded ? (
+              <button onClick={loadMembers} style={{ width: '100%', padding: '12px 0', borderRadius: 12, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', fontSize: 14 }}>유저 목록 불러오기</button>
+            ) : (
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+                  <thead><tr style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    {['아이디', '잔액', '가입일'].map(h => <th key={h} style={{ padding: '10px 16px', textAlign: 'left' as const, fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {members.map(m => (
+                      <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 13, color: '#E2E8F0', fontWeight: 600 }}>@{m.username}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 13, color: '#60A5FA' }}>{m.wallet_balance.toLocaleString()}P</td>
+                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{new Date(m.created_at).toLocaleDateString('ko-KR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {members.length === 0 && <p style={{ padding: '24px', textAlign: 'center' as const, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>유저가 없어요</p>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 신고 관리 */}
+        {tab === 'reports' && (
+          <div>
+            {!reportsLoaded ? (
+              <button onClick={loadReports} style={{ width: '100%', padding: '12px 0', borderRadius: 12, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', fontSize: 14 }}>신고 목록 불러오기</button>
+            ) : reports.length === 0 ? (
+              <div style={{ textAlign: 'center' as const, padding: '40px', color: 'rgba(255,255,255,0.4)' }}>신고 내역이 없어요</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {reports.map(r => (
+                  <div key={r.id} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 18, border: `1px solid ${r.status==='pending'?'rgba(239,68,68,0.3)':'rgba(255,255,255,0.08)'}`, opacity: r.status!=='pending'?0.6:1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>@{r.reporter_username} · {new Date(r.created_at).toLocaleDateString('ko-KR')}</span>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: r.status==='pending'?'rgba(239,68,68,0.2)':r.status==='resolved'?'rgba(52,211,153,0.2)':'rgba(148,163,184,0.2)', color: r.status==='pending'?'#EF4444':r.status==='resolved'?'#34D399':'#94A3B8', fontWeight: 700 }}>
+                        {r.status==='pending'?'대기중':r.status==='resolved'?'처리됨':'기각'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#E2E8F0', marginBottom: 4 }}>{r.target_type === 'market' ? '마켓' : '댓글'} 신고 · {r.reason}</p>
+                    <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: r.status==='pending'?10:0 }}>대상 ID: {r.target_id}</p>
+                    {r.status === 'pending' && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleResolveReport(r.id)} style={{ padding: '7px 14px', borderRadius: 9, background: 'rgba(52,211,153,0.15)', color: '#34D399', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>처리 완료</button>
+                        <button onClick={() => handleDismissReport(r.id)} style={{ padding: '7px 14px', borderRadius: 9, background: 'rgba(148,163,184,0.15)', color: '#94A3B8', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>기각</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 통계 */}
+        {tab === 'stats' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+              {[
+                ['전체 마켓', String(debates.length)],
+                ['진행 중', String(debates.filter(d=>d.status==='live').length)],
+                ['정산 대기', String(debates.filter(d=>d.status==='pending_resolution').length)],
+                ['종료됨', String(debates.filter(d=>d.status==='resolved').length)],
+                ['총 베팅풀', `${(debates.reduce((s,d)=>s+d.metrics.totalPool,0)/10000).toFixed(0)}만P`],
+                ['고래 배틀', String((whaleBattles as WhaleBattle[]).length)],
+              ].map(([l,v]) => (
+                <div key={l} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '18px 20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{l}</p>
+                  <p style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>카테고리별 마켓 수</p>
+              {Array.from(new Set(debates.map(d=>d.category))).map((cat: string) => {
+                const count = debates.filter(d=>d.category===cat).length
+                const pool = debates.filter(d=>d.category===cat).reduce((s,d)=>s+d.metrics.totalPool,0)
+                return (
+                  <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, color: '#E2E8F0', width: 100, flexShrink: 0 }}>{cat}</span>
+                    <div style={{ flex: 1, height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, count/debates.length*100)}%`, background: C.blue, borderRadius: 99 }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', width: 60, textAlign: 'right' as const }}>{count}개</span>
+                    <span style={{ fontSize: 12, color: '#60A5FA', width: 80, textAlign: 'right' as const }}>{(pool/10000).toFixed(0)}만P</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

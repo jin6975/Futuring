@@ -99,6 +99,62 @@ export default function MarketPage() {
   const isPendingResolution = debate.status === 'pending_resolution'
 
   // ── 베팅 패널 ──────────────────────────────────
+  const bookmarks = usePledgeStore(s => s.bookmarks)
+  const bookmarked = !!(bookmarks as {marketId:string}[]).find(b => b.marketId === (debate?.id ?? ''))
+
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reportSent, setReportSent] = useState(false)
+
+  const handleReport = async () => {
+    if (!currentUser.userId || !reportReason.trim() || !debate) return
+    const { supabase } = await import('@/lib/supabase')
+    await supabase.from('reports').insert({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      reporter_id: currentUser.userId,
+      reporter_username: currentUser.username,
+      target_type: 'market',
+      target_id: debate.id,
+      reason: reportReason,
+    })
+    setReportSent(true)
+    setTimeout(() => { setShowReport(false); setReportSent(false); setReportReason('') }, 2000)
+  }
+
+  const handleShare = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      await navigator.share({ title: debate?.topic, url }).catch(() => {})
+    } else {
+      await navigator.clipboard.writeText(url)
+      showToast('링크가 복사됐어요!')
+    }
+  }
+
+  const ReportPanel = showReport ? (
+    <div style={{ background:'#FEF2F2', borderRadius:14, padding:16, border:'1px solid #FECACA', marginBottom:12 }}>
+      {reportSent ? (
+        <p style={{ fontSize:14, fontWeight:700, color:C.green, textAlign:'center' as const }}>✅ 신고가 접수됐어요</p>
+      ) : (
+        <>
+          <p style={{ fontSize:13, fontWeight:700, color:C.red, marginBottom:10 }}>🚨 이 마켓 신고하기</p>
+          <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:10 }}>
+            {['스팸/광고', '허위 정보', '부적절한 내용', '기타'].map(r => (
+              <button key={r} onClick={() => setReportReason(r)}
+                style={{ padding:'8px 12px', borderRadius:9, border:`1.5px solid ${reportReason===r?C.red:C.grayBorder}`, background:reportReason===r?'#FEF2F2':'transparent', color:reportReason===r?C.red:C.gray, fontSize:13, fontWeight:600, cursor:'pointer', textAlign:'left' as const }}>
+                {r}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleReport} disabled={!reportReason}
+            style={{ width:'100%', padding:'10px 0', borderRadius:10, background:reportReason?C.red:C.grayLight, color:reportReason?'#fff':C.gray, border:'none', cursor:'pointer', fontSize:13, fontWeight:700 }}>
+            신고 제출
+          </button>
+        </>
+      )}
+    </div>
+  ) : null
+
   const PendingBanner = isPendingResolution ? (
     <div style={{ background: '#FFFBEB', borderRadius: 16, padding: '18px 20px', border: '1.5px solid #FDE68A', textAlign: 'center' as const }}>
       <p style={{ fontSize: 16, marginBottom: 6 }}>⏳</p>
@@ -177,6 +233,7 @@ export default function MarketPage() {
       {toast && <Toast message={toast.msg} type={toast.type} />}
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} message="베팅하려면 로그인이 필요해요" />}
       <div style={{ padding: '16px 16px 0' }}>{ChartPanel}</div>
+      {ReportPanel && <div style={{ padding: '0 16px' }}>{ReportPanel}</div>}
       {isPendingResolution && (
         <div style={{ padding: '12px 16px' }}>{PendingBanner}</div>
       )}
@@ -215,6 +272,7 @@ export default function MarketPage() {
 
         {/* 2열: 베팅 패널 */}
         <div style={{ position: 'sticky', top: 80 }}>
+          {ReportPanel}
           {isPendingResolution && PendingBanner}
           {debate.status === 'live' && (isBinary
             ? BetPanel

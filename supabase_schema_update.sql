@@ -125,3 +125,31 @@ create table if not exists push_subscriptions (
 
 alter table push_subscriptions enable row level security;
 create policy "push_sub_own" on push_subscriptions for all using (true);
+
+-- =============================================
+-- 5차 업데이트: 북마크, 신고 테이블
+-- =============================================
+create table if not exists bookmarks (
+  id text primary key,
+  user_id text not null,
+  market_id text not null,
+  created_at timestamptz default now(),
+  unique(user_id, market_id)
+);
+alter table bookmarks enable row level security;
+create policy "bookmarks_all" on bookmarks for all using (true);
+
+create table if not exists reports (
+  id text primary key,
+  reporter_id text not null,
+  reporter_username text not null,
+  target_type text not null, -- 'market' | 'comment'
+  target_id text not null,
+  reason text not null,
+  status text default 'pending', -- 'pending' | 'resolved' | 'dismissed'
+  created_at timestamptz default now()
+);
+alter table reports enable row level security;
+create policy "reports_insert" on reports for insert with check (true);
+create policy "reports_read" on reports for select using (true);
+create policy "reports_update" on reports for update using (true);

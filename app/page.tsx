@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { usePledgeStore, type Debate, type Side } from '@/store/usePledgeStore'
 import { useDevice } from '@/lib/useDevice'
 import FuturingNav from '@/components/FuturingNav'
@@ -10,6 +10,7 @@ import BottomNav from '@/components/BottomNav'
 import { C } from '@/lib/constants'
 import Link from 'next/link'
 import LoginModal from '@/components/LoginModal'
+import { SkeletonList } from '@/components/SkeletonCard'
 
 function fmtPool(n: number) {
   if (n >= 1_000_000) return `${(n/1_000_000).toFixed(1)}M P`
@@ -18,7 +19,10 @@ function fmtPool(n: number) {
 
 export default function HomePage() {
   const debates = usePledgeStore(s => s.debates)
+  const loadMarkets = usePledgeStore(s => s.loadMarkets)
   const isLoggedIn = usePledgeStore(s => s.currentUser.isLoggedIn)
+  const [marketsLoaded, setMarketsLoaded] = useState(false)
+  useEffect(() => { loadMarkets().then(() => setMarketsLoaded(true)) }, [loadMarkets])
   const device = useDevice()
   const isMobile = device === 'mobile'
   const [cat, setCat] = useState('전체')
@@ -108,7 +112,8 @@ export default function HomePage() {
 
         {/* 카드 그리드 */}
         <div style={isMobile?{display:'flex',flexDirection:'column',gap:12}:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:20}}>
-          {filtered.length===0
+          {!marketsLoaded && <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'repeat(2,1fr)', gap:16 }}><SkeletonList count={4} /></div>}
+          {marketsLoaded && filtered.length===0
             ? <div style={{ gridColumn:'1/-1', textAlign:'center', padding:'80px 0' }}><p style={{ fontSize:40, marginBottom:12 }}>🔍</p><p style={{ fontSize:16, fontWeight:700, color:C.navy }}>마켓이 없어요</p></div>
             : displayed.map(d=><FuturingMarketCard key={d.id} debate={d} onBet={onBet}/>)
           }

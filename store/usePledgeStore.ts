@@ -60,6 +60,9 @@ export interface Bounty {
   winnerId?: string | null; marketId?: string | null
 }
 
+// 북마크
+export interface Bookmark { marketId: string; createdAt: number }
+
 // 관리자 경제 설정
 export interface EconomySettings {
   dailyReward: number
@@ -122,6 +125,10 @@ interface PledgeStore {
   participateBounty: (bountyId: string) => Promise<void>
   createBounty: (topic: string, reward: number, condition: string, durationDays: number, marketId?: string) => Promise<void>
   resolveBounty: (bountyId: string, winnerUsername: string) => Promise<void>
+  bookmarks: Bookmark[]
+  toggleBookmark: (marketId: string) => Promise<void>
+  loadBookmarks: () => Promise<void>
+  isBookmarked: (marketId: string) => boolean
   // 관리자
   saveEconomySettings: (settings: EconomySettings) => Promise<void>
   adminAddPoints: (targetUsername: string, amount: number) => Promise<boolean>
@@ -197,6 +204,7 @@ const INITIAL_STATE = {
   auctions: [] as AuctionItem[],
   bounties: [] as Bounty[],
   economySettings: DEFAULT_ECONOMY,
+  bookmarks: [] as Bookmark[],
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -569,7 +577,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
 
   logout: async () => {
     await supabase.auth.signOut()
-    set(() => ({ currentUser: { isLoggedIn:false, username:'', winRate:0, totalPnL:0 }, walletBalance:5000, ledger:[], positions:{}, follows:{}, lpPositions:[], whaleBattles:[], auctions:[], bounties:[] }))
+    set(() => ({ currentUser: { isLoggedIn:false, username:'', winRate:0, totalPnL:0 }, walletBalance:5000, ledger:[], positions:{}, follows:{}, lpPositions:[], whaleBattles:[], auctions:[], bounties:[], bookmarks:[] }))
   },
 
   setUsername: (username) => set((s: typeof INITIAL_STATE) => ({ currentUser:{...s.currentUser, username} })),
@@ -928,6 +936,36 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
     set({ economySettings: settings })
   },
 
+  bookmarks: [],
+
+  loadBookmarks: async () => {
+    const state = get()
+    if (!state.currentUser.userId) return
+    const { data } = await supabase.from('bookmarks').select('*').eq('user_id', state.currentUser.userId)
+    if (data) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      set({ bookmarks: data.map((r: any) => ({ marketId: r.market_id, createdAt: new Date(r.created_at).getTime() })) })
+    }
+  },
+
+  toggleBookmark: async (marketId) => {
+    const state = get()
+    if (!state.currentUser.userId) return
+    const existing = (state.bookmarks as Bookmark[]).find(b => b.marketId === marketId)
+    if (existing) {
+      await supabase.from('bookmarks').delete().eq('user_id', state.currentUser.userId).eq('market_id', marketId)
+      set((s: typeof INITIAL_STATE & { bookmarks: Bookmark[] }) => ({ bookmarks: s.bookmarks.filter((b: Bookmark) => b.marketId !== marketId) }))
+    } else {
+      const id = generateId()
+      await supabase.from('bookmarks').insert({ id, user_id: state.currentUser.userId, market_id: marketId })
+      set((s: typeof INITIAL_STATE & { bookmarks: Bookmark[] }) => ({ bookmarks: [...s.bookmarks, { marketId, createdAt: Date.now() }] }))
+    }
+  },
+
+  isBookmarked: (marketId) => {
+    return !!(get().bookmarks as Bookmark[]).find(b => b.marketId === marketId)
+  },
+
   adminAddPoints: async (targetUsername, amount) => {
     const { data: profile } = await supabase.from('profiles').select('wallet_balance, id').eq('username', targetUsername).single()
     if (!profile) return false
@@ -943,7 +981,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
   },
 }), {
   name: 'futuring-store-v3',
-  version: 8,
+  version: 9,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   migrate: (persistedState: any, version: number): any => {
     const state = persistedState as Record<string, unknown>
@@ -954,6 +992,7 @@ export const usePledgeStore = create<PledgeStore>()(persist((set: any, get: any)
     if (version<5) { result.whaleBattles=[] }
     if (version<7) { result.debates=[] }
     if (version<8) { result.lpPositions=[]; result.auctions=[]; result.bounties=[]; result.economySettings=DEFAULT_ECONOMY; result.whaleBattles=[] }
+    if (version<9) { result.bookmarks=[] }
     return result
   },
 }))
